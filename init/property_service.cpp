@@ -1152,6 +1152,9 @@ void PropertyLoadBootDefaults() {
     property_initialize_ro_vendor_api_level();
 
     update_sys_usb_config();
+
+    // Restore the normal property override security after init extension is executed
+    weaken_prop_override_security = false;
 }
 
 bool LoadPropertyInfoFromFile(const std::string& filename,
