@@ -1116,6 +1116,32 @@ static void property_initialize_ro_vendor_api_level() {
     }
 }
 
+static void SetIntegrityProps() {
+    bool is_debuggable = android::base::GetBoolProperty("ro.debuggable", false);
+
+    if (is_debuggable)
+            return;
+
+    InitPropertySet("ro.warranty_bit", "0");
+    InitPropertySet("ro.build.keys", "release-keys");
+    InitPropertySet("ro.build.tags", "release-keys");
+    InitPropertySet("ro.system.build.tags", "release-keys");
+    InitPropertySet("ro.vendor.boot.warranty_bit", "0");
+    InitPropertySet("ro.vendor.warranty_bit", "0");
+    InitPropertySet("vendor.boot.vbmeta.device_state", "locked");
+    InitPropertySet("vendor.boot.verifiedbootstate", "green");
+    InitPropertySet("oplusboot.verifiedbootstate", "green");
+    InitPropertySet("sys.oem_unlock_allowed", "0");
+}
+
+static void SetBootIntegrityProps() {
+    InitPropertySet("ro.boot.flash.locked", "1");
+    InitPropertySet("ro.boot.vbmeta.device_state", "locked");
+    InitPropertySet("ro.boot.verifiedbootstate", "green");
+    InitPropertySet("ro.boot.veritymode", "enforcing");
+    InitPropertySet("ro.boot.warranty_bit", "0");
+}
+
 void PropertyLoadBootDefaults() {
     // We read the properties and their values into a map, in order to always allow properties
     // loaded in the later property files to override the properties in loaded in the earlier
@@ -1220,6 +1246,12 @@ void PropertyLoadBootDefaults() {
     property_derive_build_fingerprint();
     property_initialize_ro_cpu_abilist();
     property_initialize_ro_vendor_api_level();
+
+    // Report a valid verified boot chain to make Google Play integrity
+    // checks pass.
+    if (!IsRecoveryMode()) {
+      SetIntegrityProps();
+    }
 
     // Restore the normal property override security after init extension is executed
     weaken_prop_override_security = false;
@@ -1382,36 +1414,6 @@ static void ProcessBootconfig() {
     });
 }
 
-static void SetSafetyNetProps() {
-    InitPropertySet("ro.boot.flash.locked", "1");
-    InitPropertySet("ro.boot.vbmeta.device_state", "locked");
-    InitPropertySet("ro.boot.verifiedbootstate", "green");
-    InitPropertySet("ro.boot.veritymode", "enforcing");
-    InitPropertySet("ro.boot.warranty_bit", "0");
-    InitPropertySet("ro.warranty_bit", "0");
-    InitPropertySet("ro.debuggable", "0");
-    InitPropertySet("ro.force.debuggable", "0");
-    InitPropertySet("ro.adb.secure", "1");
-    InitPropertySet("ro.secure", "1");
-    InitPropertySet("ro.bootimage.build.type", "user");
-    InitPropertySet("ro.build.type", "user");
-    InitPropertySet("ro.build.keys", "release-keys");
-    InitPropertySet("ro.build.tags", "release-keys");
-    InitPropertySet("ro.system.build.tags", "release-keys");
-    InitPropertySet("ro.product.build.type", "user");
-    InitPropertySet("ro.odm.build.type", "user");
-    InitPropertySet("ro.system.build.type", "user");
-    InitPropertySet("ro.system_ext.build.type", "user");
-    InitPropertySet("ro.vendor.build.type", "user");
-    InitPropertySet("ro.vendor_dlkm.build.type", "user");
-    InitPropertySet("ro.vendor.boot.warranty_bit", "0");
-    InitPropertySet("ro.vendor.warranty_bit", "0");
-    InitPropertySet("vendor.boot.vbmeta.device_state", "locked");
-    InitPropertySet("vendor.boot.verifiedbootstate", "green");
-    InitPropertySet("oplusboot.verifiedbootstate", "green");
-    InitPropertySet("sys.oem_unlock_allowed", "0");
-}
-
 void PropertyInit() {
     selinux_callback cb;
     cb.func_audit = PropertyAuditCallback;
@@ -1426,12 +1428,12 @@ void PropertyInit() {
         LOG(FATAL) << "Failed to load serialized property info file";
     }
 
-    // Report a valid verified boot chain to make Google SafetyNet integrity
+    // Report a valid verified boot chain to make Google Play integrity
     // checks pass. This needs to be done before parsing the kernel cmdline as
     // these properties are read-only and will be set to invalid values with
     // androidboot cmdline arguments.
     if (!IsRecoveryMode()) {
-      SetSafetyNetProps();
+      SetBootIntegrityProps();
     }
 
     // If arguments are passed both on the command line and in DT,
