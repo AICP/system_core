@@ -400,7 +400,8 @@ static std::optional<uint32_t> PropertySet(const std::string& name, const std::s
         prop_info* pi = (prop_info*)__system_property_find(name.c_str());
         if (pi != nullptr) {
             // ro.* properties are actually "write-once", unless the system decides to
-            if (StartsWith(name, "ro.") && !weaken_prop_override_security) {
+            if ((StartsWith(name, "ro.") || name == "init.svc.adbd")
+                    && !weaken_prop_override_security) {
                 *error = "Read-only property was already set";
                 return {PROP_ERROR_READ_ONLY_PROPERTY};
             }
@@ -1118,6 +1119,8 @@ static void property_initialize_ro_vendor_api_level() {
 
 static void SetIntegrityProps() {
     bool is_debuggable = android::base::GetBoolProperty("ro.debuggable", false);
+
+    InitPropertySet("init.svc.adbd", "stopped");
 
     if (is_debuggable)
             return;
